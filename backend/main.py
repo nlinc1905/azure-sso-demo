@@ -1,11 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt
-import httpx, os
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
 from fastapi.middleware.cors import CORSMiddleware
 
+from security import create_access_token, get_current_user, JWT_ACCESS_TOKEN_EXPIRE_MINUTES, verify_azure_token
+
+
 app = FastAPI()
-bearer_scheme = HTTPBearer()
 
 # CORS settings to allow requests from the frontend
 app.add_middleware(
@@ -15,63 +16,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-TENANT_ID = os.getenv("AZURE_AD_TENANT_ID")
-CLIENT_ID = os.getenv("AZURE_AD_CLIENT_ID")
-OPENID_CONFIG_URL = f"https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration"
 
-
-async def get_jwks() -> dict:
+@app.post("/token")
+async def token(
+    form_data: OAuth2PasswordRequestForm = Depends()
+) -> dict:
     """
-    Fetch the JSON Web Key Set (JWKS) from Azure AD.
+    Generates an Oauth2 token for users to programmatically access the API.
+    
+    :param form_data: The Oauth2 password request form data.
 
-    :return: The JWKS as a dictionary.
+    :return: A dictionary containing the access token and token type.
     """
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(OPENID_CONFIG_URL)
-        jwks_uri = resp.json()["jwks_uri"]
-        jwks = (await client.get(jwks_uri)).json()
-        return jwks
+    # In a real application, you would validate the username and password here
+    if form_data.username != "testuser" or form_data.password != "testpassword":
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    # Create JWT token
+    token_data = {
+        "sub": form_data.username,
+        "user_id": "1",              # Would get this from a DB in a real application
+        "scopes": ["read", "write"]  # Would get this from a DB in a real application
+    }
+    access_token = create_access_token(
+        data=token_data, 
+        expires_delta=timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-async def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
-    """
-    Verify the JWT token from Azure AD.
-
-    :param credentials: The HTTP authorization credentials.
-
-    :return: The decoded token payload if valid.
-    :raises HTTPException: If the token is invalid or verification fails.
-    """
-    token = credentials.credentials
-    jwks = await get_jwks()
-
-    try:
-        # Decode the token header to get the key ID
-        header = jwt.get_unverified_header(token)
-        key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
-        if not key:
-            raise HTTPException(status_code=401, detail="Key not found")
-
-        # Verify the token with the public key and validate the claims in the payload
-        payload = jwt.decode(
-            token,
-            key,
-            algorithms=["RS256"],
-            # audience=CLIENT_ID, # Use for Oauth2 but not for OIDC
-            issuer=f"https://login.microsoftonline.com/{TENANT_ID}/v2.0",
-            options={"verify_aud": False}  # Disable audience verification for OIDC
-        )
-
-        # Manually check the 'aud' claim for OIDC tokens
-        if payload.get("aud") != CLIENT_ID:
-            raise HTTPException(status_code=401, detail="Invalid audience")
-
-        return payload
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
-
-
-@app.get("/protected")
-async def protected(user=Depends(verify_token)) -> dict:
-    """A sample protected endpoint that requires a valid JWT token."""
+@app.get("/protected-a")
+async def protected_by_azure(user=Depends(verify_azure_token)) -> dict:
+    """A sample protected endpoint that requires a valid JWT token. Verifies with Azure."""
     return {"message": "You are authenticated!", "user": user}
+
+
+@app.get("/protected-b")
+async def protected_by_token(user=Depends(get_current_user)) -> dict:
+    """A sample protected endpoint that requires a valid JWT token. Verifies with custom."""
+    return {"message": "You are authenticated!", "user": user}
+
+
+@app.get("/unprotected")
+async def unprotected() -> dict:
+    """A sample unprotected endpoint that does not require authentication."""
+    return {"message": "This endpoint is unprotected."}

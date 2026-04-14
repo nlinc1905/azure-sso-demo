@@ -11,7 +11,7 @@ export default function Home() {
   // This function uses the ID token from the session to authenticate the request
   async function callApi() {
     if (!session?.idToken) return
-    const res = await fetch("http://localhost:8000/protected", {
+    const res = await fetch("http://localhost:8000/protected-a", {
       headers: {
         Authorization: `Bearer ${session.idToken}`,
       },

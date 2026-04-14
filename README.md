@@ -10,19 +10,21 @@ Clicking the link to call FastAPI will show an alert that should say the user is
 
 ## How it Works
 
-The front-end routes a request to Azure for authentication, and Azure responds with a OpenID connect token (OIDC) for next-auth, and an Oauth2 token for the back-end, which are both in the JWT. It also makes email available in the session. 
+The front-end routes a request to Azure for authentication, and Azure responds with a OpenID connect token (OIDC) for next-auth, and an Oauth2 token for the back-end, which are both in the JWT. It also makes email available in the session.
 
 > **Note:** This demo uses the ID token to authorize the API, instead of the Oauth2 token. In practice, the ID token should only be used for authentication. To use the Oauth2 token to authorize the API, see the commented lines in main.py. You will also need to register a 2nd Azure app for the back-end, replace the environment variable values, and configure scopes. You should do this if you need to protect both the front-end and back-end.
 
 ## How to Run
 
 Prerequisites:
+
 * Register an Azure app (steps below)
 * Create environment variables for the front-end and back-end
 
 ### Register an Azure App
 
 Follow these steps in Azure:
+
 1. Sign up for a free trial or pay as you go for Azure
 2. Go to the Azure portal: https://portal.azure.com
 3. Switch to the default directory for your new Azure subscription (top right > switch directory)
@@ -47,7 +49,8 @@ Build your app and set the copied values as env variables.
 ### Create Environment Variables
 
 The front-end expects the following variables in a file named `.env.local`
-```
+
+```txt
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<random-string>
 AZURE_AD_CLIENT_ID=<your-client-id>
@@ -56,7 +59,8 @@ AZURE_AD_TENANT_ID=<your-tenant-id>
 ```
 
 The back-end expects the following variables in a file named `.env`
-```
+
+```txt
 AZURE_AD_CLIENT_ID=<your-client-id>
 AZURE_AD_TENANT_ID=<your-tenant-id>
 ```
@@ -64,11 +68,13 @@ AZURE_AD_TENANT_ID=<your-tenant-id>
 ### Startup/Shutdown
 
 Startup with Docker compose:
+
 ```bash
 docker-compose up --build
 ```
 
 Bring it down:
+
 ```bash
 docker-compose down
 ```

@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from jose import jwt
+from jose.exceptions import JWTError, ExpiredSignatureError
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
@@ -38,9 +39,15 @@ def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> d
     :return: The decoded token payload if valid.
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, 
+            JWT_SECRET_KEY, 
+            algorithms=[JWT_ALGORITHM],
+            options={"verify_exp": True},
+        )
+        # Additional claim checks can be added here (e.g. issuer, audience) if needed
         return dict(payload)
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")

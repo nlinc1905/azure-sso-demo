@@ -33,13 +33,18 @@ async def verify_azure_token(credentials: HTTPAuthorizationCredentials = Depends
     """
     token = credentials.credentials
     jwks = await get_jwks()
+    jwks_keys = jwks.get("keys")
+    if not isinstance(jwks_keys, list):
+        raise HTTPException(status_code=401, detail="Invalid JWKS format")
 
     try:
         # Decode the token header to get the key ID
         header = jwt.get_unverified_header(token)
-        key = next((k for k in jwks["keys"] if k["kid"] == header["kid"]), None)
+        if "kid" not in header:
+            raise HTTPException(status_code=401, detail="Missing key ID in token header")
+        key = next((k for k in jwks_keys if k["kid"] == header["kid"]), None)
         if not key:
-            raise HTTPException(status_code=401, detail="Key not found")
+            raise HTTPException(status_code=401, detail="The key provided in the header was not found in the JWKS")
 
         # Decode the token with the public key, 
         # and verify the token's issuer and expiration date. 
@@ -60,3 +65,15 @@ async def verify_azure_token(credentials: HTTPAuthorizationCredentials = Depends
         return dict(payload)
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+
+
+class AzureTokenVerifier:
+    """
+    A callable class wrapper for verify_azure_token, so it can be used both 
+    as a dependency and called manually.
+    """
+
+    async def __call__(
+        self, credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+    ) -> dict:
+        return await verify_azure_token(credentials)

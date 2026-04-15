@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from fastapi.middleware.cors import CORSMiddleware
 
-from security import create_access_token, get_current_user, JWT_ACCESS_TOKEN_EXPIRE_MINUTES, verify_azure_token
+from security import authenticate_user, create_access_token, get_current_user, JWT_ACCESS_TOKEN_EXPIRE_MINUTES, verify_azure_token
 
 
 app = FastAPI()
@@ -53,7 +53,15 @@ async def protected_by_azure(user=Depends(verify_azure_token)) -> dict:
 
 @app.get("/protected-b")
 async def protected_by_token(user=Depends(get_current_user)) -> dict:
-    """A sample protected endpoint that requires a valid JWT token. Verifies with custom."""
+    """A sample protected endpoint that requires a valid JWT token. Verifies with custom oauth2 token."""
+    return {"message": "You are authenticated!", "user": user}
+
+
+@app.get("/protected-c")
+async def protected_by_both(user=Depends(authenticate_user)) -> dict:
+    """
+    A sample endpoint protected by both Azure SSO and FastAPI's token-based authentication.
+    """
     return {"message": "You are authenticated!", "user": user}
 
 

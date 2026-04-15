@@ -6,23 +6,61 @@ The app is just a plain screen. If a user has not authenticated via Azure SSO, t
 ![signed-out](./img/signed-out.png)
 ![signed-in](./img/signed-in.png)
 
-Clicking the link to call FastAPI will show an alert that should say the user is authenticated. That indicates the endpoint was successfully called.
+Clicking the link to call FastAPI will show an alert that should say the user is authenticated. That indicates the endpoint (protected-a) was successfully called.
+
+![back-end](./img/back-end.png)
+
+The back-end has 3 protected endpoints and 1 unprotected endpoint. The protected endpoints are protected by 3 different methods to show how they work:
+
+1. protected-a is protected by Azure, requiring SSO to use (so it cannot be used at all without the front-end)
+2. protected-b is protected by FastAPI's built-in Oauth, requiring a token requested through the back-end
+3. protected-c is protected by Azure OR FastAPI's Oauth, so it can be accessed either by requesting a token through the back-end or by the front-end with SSO
 
 ## How it Works
 
-The front-end routes a request to Azure for authentication, and Azure responds with a OpenID connect token (OIDC) for next-auth, and an Oauth2 token for the back-end, which are both in the JWT. It also makes email available in the session. 
+The front-end routes a request to Azure for authentication, and Azure responds with a OpenID connect token (OIDC) for next-auth, and an Oauth2 token for the back-end, which are both in the JWT. It also makes email available in the session.
 
-> **Note:** This demo uses the ID token to authorize the API, instead of the Oauth2 token. In practice, the ID token should only be used for authentication. To use the Oauth2 token to authorize the API, see the commented lines in main.py. You will also need to register a 2nd Azure app for the back-end, replace the environment variable values, and configure scopes. You should do this if you need to protect both the front-end and back-end.
+> **Note:** This demo uses the ID token to authorize the API, instead of the Oauth2 token. In practice, the ID token should only be used for authentication. To use the Oauth2 token to authorize the API, you will need to register a 2nd Azure app for the back-end, replace the environment variable values, and configure scopes.
+
+Using the ID token to authorize the API instead of having a separate registered Azure app has its advantages and disadvantages. Here's a breakdown:
+
+### Advantages of Authorizing with the ID Token Instead of the Oauth Token
+
+1. Simplified Setup:
+   - You only need one Azure app registration for both the front end and back end, reducing administrative overhead.
+2. Unified Authentication:
+   - The ID token is already issued as part of the authentication process, so you can reuse it without requiring additional token requests.
+   - This simplifies the flow between the front end and back end.
+3. Reduced Latency:
+   - Since the ID token is already available after the user logs in, you avoid the need for an additional round trip to Azure AD to fetch an access token.
+4. Easier Debugging:
+   - With a single token, it is easier to trace and debug authentication issues across the front end and back end.
+
+### Disadvantages of Authorizing with the ID Token Instead of the Oauth Token
+
+1. Not Designed for Authorization:
+   - The ID token is primarily intended for authentication (verifying the user's identity) and not for authorization (granting access to resources).
+2. Limited Scope:
+   - The ID token typically does not include granular permissions or scopes for API access, which are provided by an access token, making it harder to implement fine-grained access control.
+3. Shorter Lifespan:
+   - ID tokens often have a shorter expiration time compared to access tokens, which may require frequent reauthentication.
+4. Potential for Misuse:
+   - If the ID token is intercepted or misused, it could expose sensitive user information (e.g., claims like `email`, `name`, etc.).
+   - Access tokens, on the other hand, are designed to be opaque and contain only the information needed for authorization.
+5. Separation of Concerns:
+   - Having a separate Azure app for the back-end allows you to define distinct permissions and roles for API access, which is harder to achieve with just the ID token.
 
 ## How to Run
 
 Prerequisites:
-* Register an Azure app (steps below)
-* Create environment variables for the front-end and back-end
+
+- Register an Azure app (steps below)
+- Create environment variables for the front-end and back-end
 
 ### Register an Azure App
 
 Follow these steps in Azure:
+
 1. Sign up for a free trial or pay as you go for Azure
 2. Go to the Azure portal: https://portal.azure.com
 3. Switch to the default directory for your new Azure subscription (top right > switch directory)
@@ -47,7 +85,8 @@ Build your app and set the copied values as env variables.
 ### Create Environment Variables
 
 The front-end expects the following variables in a file named `.env.local`
-```
+
+```txt
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<random-string>
 AZURE_AD_CLIENT_ID=<your-client-id>
@@ -56,7 +95,8 @@ AZURE_AD_TENANT_ID=<your-tenant-id>
 ```
 
 The back-end expects the following variables in a file named `.env`
-```
+
+```txt
 AZURE_AD_CLIENT_ID=<your-client-id>
 AZURE_AD_TENANT_ID=<your-tenant-id>
 ```
@@ -64,11 +104,13 @@ AZURE_AD_TENANT_ID=<your-tenant-id>
 ### Startup/Shutdown
 
 Startup with Docker compose:
+
 ```bash
 docker-compose up --build
 ```
 
 Bring it down:
+
 ```bash
 docker-compose down
 ```

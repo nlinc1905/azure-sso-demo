@@ -3,3 +3,4 @@ uvicorn
 python-jose[cryptography]
 httpx==0.28.1
 python-dotenv
+python-multipart

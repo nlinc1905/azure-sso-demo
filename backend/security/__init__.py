@@ -3,16 +3,13 @@ from .constants import JWT_ACCESS_TOKEN_EXPIRE_MINUTES
 from .token_utils import create_access_token, get_current_user
 
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 
 azure_verifier = AzureTokenVerifier()
 
 
-async def authenticate_user(
-    request: Request,
-    token_user=Depends(get_current_user)
-) -> dict:
+async def authenticate_user(request: Request) -> dict:
     """
     Authenticate the user using either Azure SSO or FastAPI's token-based authentication. 
 
@@ -23,7 +20,6 @@ async def authenticate_user(
     and catch any exceptions to allow fallback to token-based auth.
 
     :param request: The incoming HTTP request.
-    :param token_user: User authenticated via FastAPI's token-based authentication.
 
     :return: The authenticated user.
     :raises HTTPException: If both authentication methods fail.
@@ -38,14 +34,15 @@ async def authenticate_user(
     except (HTTPException, Exception):
         pass  # Azure auth failed, fall through to token auth
 
-    # Fall back to token-based auth (already resolved via Depends)
-    if token_user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication failed for both Azure SSO and API token."
-        )
+    # Fall back to token-based auth
+    token_user = await get_current_user(request)
+    if token_user is not None:
+        return token_user
 
-    return token_user
+    raise HTTPException(
+        status_code=401,
+        detail="Authentication failed for both Azure SSO and API token."
+    )
 
 
 __all__ = [

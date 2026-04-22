@@ -3,14 +3,14 @@ from typing import Optional
 
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 
 
 from .constants import JWT_ALGORITHM, JWT_SECRET_KEY, JWT_TOKEN_ROUTE
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=JWT_TOKEN_ROUTE)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=JWT_TOKEN_ROUTE, auto_error=False)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -29,19 +29,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return str(encoded_jwt)
 
 
-def get_current_user(request: Request, token: str = Depends(oauth2_scheme)) -> dict:
+async def get_current_user(request: Request) -> dict:
     """
     Helper function to authenticate the user by decoding the JWT token and validating its claims. 
 
     :param request: The incoming HTTP request.
-    :param token: The JWT token extracted from the Authorization header.
 
-    :return: The decoded token payload if valid.
+    :return: The decoded token payload if valid, else None.
     """
+    token = await oauth2_scheme(request)  # returns None if missing
+    if not token:
+        raise HTTPException(status_code=401, detail="No token provided")
     try:
         payload = jwt.decode(
-            token, 
-            JWT_SECRET_KEY, 
+            token,
+            JWT_SECRET_KEY,
             algorithms=[JWT_ALGORITHM],
             options={"verify_exp": True},
         )

@@ -3,7 +3,7 @@ from typing import Optional
 
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -29,7 +29,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return str(encoded_jwt)
 
 
-async def get_current_user(request: Request) -> dict:
+async def get_current_user(request: Request) -> Optional[dict]:
     """
     Helper function to authenticate the user by decoding the JWT token and validating its claims. 
 
@@ -39,7 +39,7 @@ async def get_current_user(request: Request) -> dict:
     """
     token = await oauth2_scheme(request)  # returns None if missing
     if not token:
-        raise HTTPException(status_code=401, detail="No token provided")
+        return None
     try:
         payload = jwt.decode(
             token,
@@ -49,7 +49,5 @@ async def get_current_user(request: Request) -> dict:
         )
         # Additional claim checks can be added here (e.g. issuer, audience) if needed
         return dict(payload)
-    except ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token has expired")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except (ExpiredSignatureError, JWTError):
+        return None

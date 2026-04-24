@@ -17,6 +17,12 @@ async def get_jwks() -> dict:
     """
     async with httpx.AsyncClient() as client:
         resp = await client.get(OPENID_CONFIG_URL)
+
+        print("OIDC URL:", OPENID_CONFIG_URL)
+        print("Status code:", resp.status_code)
+        print("Response body:", resp.text)
+        resp.raise_for_status()
+
         jwks_uri = resp.json()["jwks_uri"]
         jwks = (await client.get(jwks_uri)).json()
         return jwks

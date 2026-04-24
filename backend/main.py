@@ -3,7 +3,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from fastapi.middleware.cors import CORSMiddleware
 
-from security import authenticate_user, create_access_token, get_current_user, JWT_ACCESS_TOKEN_EXPIRE_MINUTES, verify_azure_token
+from security import (
+    authenticate_user, 
+    create_access_token, 
+    get_current_user, 
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES, 
+    verify_azure_token,
+)
 
 
 app = FastAPI()
